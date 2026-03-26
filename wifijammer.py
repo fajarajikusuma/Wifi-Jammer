@@ -179,8 +179,9 @@ def mon_mac(mon_iface):
     http://stackoverflow.com/questions/159137/getting-mac-address
     '''
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', mon_iface[:15]))
-    mac = ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
+    info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', mon_iface[:15].encode('utf-8')))
+    #mac = ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
+    mac = ''.join(['%02x:' % char for char in info[18:24]])[:-1]
     print('['+G+'*'+W+'] Monitor mode: '+G+mon_iface+W+' - '+O+mac+W)
     return mac
 
@@ -219,7 +220,8 @@ def channel_hop(mon_iface, args):
                 print('['+R+'-'+W+'] Could not execute "iw"')
                 os.kill(os.getpid(),SIGINT)
                 sys.exit(1)
-            for line in proc.communicate()[1].split('\n'):
+            
+            for line in proc.communicate()[1].decode('utf-8').split('\n'):
                 if len(line) > 2: # iw dev shouldnt display output unless there's an error
                     err = '['+R+'-'+W+'] Channel hopping failed: '+R+line+W
 
@@ -284,21 +286,32 @@ def output(err, monchannel):
     if err:
         print(err)
     else:
-        print('['+G+'+'+W+'] '+mon_iface+' channel: '+G+monchannel+W+'\n')
+        # Pastikan monchannel adalah string
+        current_ch = str(monchannel.decode() if isinstance(monchannel, bytes) else monchannel)
+        print('['+G+'+'+W+'] '+mon_iface+' channel: '+G+current_ch+W+'\n')
+    
     if len(clients_APs) > 0:
-        print('                  Deauthing                 ch   ESSID')
+        print('                  Deauthing                  ch   ESSID')
+    
     # Print the deauth list
     with lock:
         for ca in clients_APs:
-            if len(ca) > 3:
-                print('['+T+'*'+W+'] '+O+ca[0]+W+' - '+O+ca[1]+W+' - '+ca[2].ljust(2)+' - '+T+ca[3]+W)
+            # Konversi semua elemen ca ke string agar bisa digabung (+)
+            ca_clean = [x.decode('utf-8', errors='ignore') if isinstance(x, bytes) else str(x) for x in ca]
+            if len(ca_clean) > 3:
+                print('['+T+'*'+W+'] '+O+ca_clean[0]+W+' - '+O+ca_clean[1]+W+' - '+ca_clean[2].ljust(2)+' - '+T+ca_clean[3]+W)
             else:
-                print('['+T+'*'+W+'] '+O+ca[0]+W+' - '+O+ca[1]+W+' - '+ca[2])
+                print('['+T+'*'+W+'] '+O+ca_clean[0]+W+' - '+O+ca_clean[1]+W+' - '+ca_clean[2])
+
     if len(APs) > 0:
         print('\n      Access Points     ch   ESSID')
+    
+    # Perbaikan untuk tabel Access Points yang tadi error
     with lock:
         for ap in APs:
-            print('['+T+'*'+W+'] '+O+ap[0]+W+' - '+ap[1].ljust(2)+' - '+T+ap[2]+W)
+            # Konversi semua elemen ap ke string agar tidak TypeError
+            ap_clean = [x.decode('utf-8', errors='ignore') if isinstance(x, bytes) else str(x) for x in ap]
+            print('['+T+'*'+W+'] '+O+ap_clean[0]+W+' - '+ap_clean[1].ljust(2)+' - '+T+ap_clean[2]+W)
     print('')
 
 def noise_filter(skip, addr1, addr2):
