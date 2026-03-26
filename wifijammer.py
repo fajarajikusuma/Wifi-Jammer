@@ -377,7 +377,9 @@ def APs_add(clients_APs, APs, pkt, chan_arg, world_arg):
     bssid      = pkt[Dot11].addr3.lower()
     try:
         # Thanks to airoscapy for below
-        ap_channel = str(ord(pkt[Dot11Elt:3].info))
+        #ap_channel = str(ord(pkt[Dot11Elt:3].info))
+        info = pkt[Dot11Elt:3].info
+        ap_channel = str(info[0] if isinstance(info, bytes) else ord(info))
         chans = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'] if not args.world else ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'] 
         if ap_channel not in chans:
             return
